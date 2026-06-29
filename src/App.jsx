@@ -16,10 +16,16 @@ export default function App() {
       alert('먼저 우측 상단 설정에서 MiniMax API Key를 입력/저장해 주세요.');
       return;
     }
+
+    // 1. FileList 대용 및 안전한 배열 변환
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
     setBusy(true);
 
-    // pending 상태로 미리 채워 넣기
-    const initial = files.map((f) => ({
+    // 2. 고유 ID(id)를 추가하여 파일명 중복이나 비동기 상태 꼬임 완전히 방지
+    const initial = fileArray.map((f, idx) => ({
+      id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
       fileName: f.name,
       title: '',
       date: '',
@@ -28,30 +34,35 @@ export default function App() {
       status: 'pending',
       _file: f
     }));
+
     setResults((prev) => [...prev, ...initial]);
-    setProgress({ total: (progress.total || 0) + files.length, done: progress.done });
+    setProgress((p) => ({ total: p.total + fileArray.length, done: p.done }));
 
-    // 각 파일을 순차(또는 병렬 제한) 처리
-    let processed = 0;
+    // 3. 각 파일을 순차적으로 안전하게 처리
     for (const item of initial) {
-      const localIdx = results.length + processed; // 순서가 정확하지 않을 수 있어 fileName+status로 갱신
-      processed += 1;
-
-      // status를 processing으로 변경
-      setResults((prev) => prev.map((r) => (r.fileName === item.fileName && r.status === 'pending')
-        ? { ...r, status: 'processing' }
-        : r));
+      
+      // 고유 id를 기준으로 status를 processing으로 변경
+      setResults((prev) =>
+        prev.map((r) => (r.id === item.id ? { ...r, status: 'processing' } : r))
+      );
 
       try {
         const text = await extractTextFromPdf(item._file);
         const data = await analyzePressRelease(apiKey, text);
-        setResults((prev) => prev.map((r) => (r.fileName === item.fileName && r.status === 'processing')
-          ? { ...r, ...data, status: 'done' }
-          : r));
+        
+        // 성공 시 고유 id 기준 데이터 갱신
+        setResults((prev) =>
+          prev.map((r) => (r.id === item.id ? { ...r, ...data, status: 'done' } : r))
+        );
       } catch (err) {
-        setResults((prev) => prev.map((r) => (r.fileName === item.fileName && r.status === 'processing')
-          ? { ...r, status: 'error', error: String(err?.message || err) }
-          : r));
+        // 에러 발생 시 고유 id 기준 에러 기록
+        setResults((prev) =>
+          prev.map((r) =>
+            r.id === item.id
+              ? { ...r, status: 'error', error: String(err?.message || err) }
+              : r
+          )
+        );
       } finally {
         setProgress((p) => ({ ...p, done: p.done + 1 }));
       }
@@ -89,11 +100,15 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <FileDropzone onFilesAdded={handleFilesAdded} disabled={busy} />
-            <ResultsTable results={results.map((r) => {
-              // 내부 상태(_file, error)는 화면에서 숨김
-              const { _file, error, ...rest } = r;
-              return { ...rest, _hasError: !!error };
-            })} progress={progress} busy={busy} />
+            <ResultsTable 
+              results={results.map((r) => {
+                // 내부 상태(id, _file, error)는 화면 컴포넌트에 넘길 때 정제
+                const { id, _file, error, ...rest } = r;
+                return { ...rest, _hasError: !!error };
+              })} 
+              progress={progress} 
+              busy={busy} 
+            />
           </div>
 
           <aside className="space-y-4">
