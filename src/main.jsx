@@ -1,11 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import './index.css';
+import './index.css'; 
+import { pdfjs } from 'react-pdf';
 
-import * as pdfjsLib from 'pdfjs-dist/build/pdf';
-import workerSrc from 'pdfjs-dist/build/pdf.worker.min.js?url';
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
