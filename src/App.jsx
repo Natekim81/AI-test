@@ -40,7 +40,6 @@ export default function App() {
 
     // 3. 각 파일을 순차적으로 안전하게 처리
     for (const item of initial) {
-      
       // 고유 id를 기준으로 status를 processing으로 변경
       setResults((prev) =>
         prev.map((r) => (r.id === item.id ? { ...r, status: 'processing' } : r))
@@ -49,12 +48,13 @@ export default function App() {
       try {
         const text = await extractTextFromPdf(item._file);
         const data = await analyzePressRelease(apiKey, text);
-        
+
         // 성공 시 고유 id 기준 데이터 갱신
         setResults((prev) =>
           prev.map((r) => (r.id === item.id ? { ...r, ...data, status: 'done' } : r))
         );
       } catch (err) {
+        console.error('원인 분석:', err); // ✨ 콘솔창에 진짜 이유가 찍힙니다
         // 에러 발생 시 고유 id 기준 에러 기록
         setResults((prev) =>
           prev.map((r) =>
@@ -100,14 +100,14 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <FileDropzone onFilesAdded={handleFilesAdded} disabled={busy} />
-            <ResultsTable 
+            <ResultsTable
               results={results.map((r) => {
                 // 내부 상태(id, _file, error)는 화면 컴포넌트에 넘길 때 정제
                 const { id, _file, error, ...rest } = r;
                 return { ...rest, _hasError: !!error };
-              })} 
-              progress={progress} 
-              busy={busy} 
+              })}
+              progress={progress}
+              busy={busy}
             />
           </div>
 
